@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Cavern - Campaign Edition</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --gb-body: #c0c0c0;
+            --gb-screen-lens: #555;
+            --screen-bg: #0f380f;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            color: white;
+            font-family: 'Press Start 2P', cursive;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #gb-shell {
+            background-color: var(--gb-body);
+            width: 420px;
+            height: 800px; /* Increased height to fit big buttons */
+            border-radius: 15px 15px 50px 15px;
+            box-shadow: -5px 5px 25px rgba(0,0,0,0.6), inset 2px 2px 8px rgba(255,255,255,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 40px;
+            position: relative;
+            transform: scale(0.9);
+        }
+        
+        @media (max-height: 850px) {
+            #gb-shell { transform: scale(0.70); } /* Smaller scale for smaller phones */
+        }
+
+        #gb-screen-lens {
+            background-color: var(--gb-screen-lens);
+            width: 380px;
+            padding: 25px 0;
+            border-radius: 10px 10px 40px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .lens-text {
+            color: #b0b0b0;
+            font-size: 12px;
+            width: 90%;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        
+        /* REALISTIC BATTERY LIGHT */
+        .power-light {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transition: all 0.3s;
+            background: radial-gradient(circle at 30% 30%, #555, #222);
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.1);
+            border: 1px solid #111;
+        }
+        
+        .power-light.on {
+            background: radial-gradient(circle at 30% 30%, #ffaaaa, #ff0000);
+            box-shadow: 0 0 4px #ff0000, 0 0 10px #ff3333, inset 1px 1px 1px rgba(255,255,255,0.5);
+            border-color: #aa0000;
+        }
+
+        #screen-wrapper {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            background-color: #000;
+            border: 3px solid #444;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+            width: 100%;
+            height: 100%;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            z-index: 5;
+        }
+
+        #hud {
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            text-shadow: 2px 2px 0 #000;
+            color: #fff;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+        }
+        
+        #lives-display { color: #b45252; }
+
+        #dash-bar-container {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 60px;
+            height: 6px;
+            background: #333;
+            border: 1px solid #fff;
+        }
+        #dash-bar {
+            width: 100%;
+            height: 100%;
+            background: #00ff00;
+            transform-origin: left;
+        }
+
+        /* SETTINGS BUTTON & MODAL */
+        #settings-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid #fff;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 20;
+        }
+        #settings-btn:hover { background: #d3a068; }
+
+        #settings-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            background: rgba(0,0,0,0.95);
+            border: 4px solid #b45252;
+            padding: 15px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+            z-index: 30;
+            text-align: center;
+        }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            margin-bottom: 5px;
+        }
+        .toggle-btn {
+            background: #333;
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 5px;
+            cursor: pointer;
+            font-size: 8px;
+            width: 60px;
+        }
+        .toggle-btn.active { background: #4b692f; }
+
+        /* SCREENS */
+        #start-screen, #level10-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            z-index: 10;
+            text-align: center;
+        }
+
+        #level10-screen { display: none; padding: 20px; box-sizing: border-box; }
+        .l10-text { font-size: 10px; line-height: 1.6; margin-bottom: 20px; color: #ddd; }
+        .l10-btns { display: flex; gap: 20px; }
+        
+        /* LEADERBOARD STYLES */
+        #leaderboard-screen {
+            display: none;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            flex-direction: column; align-items: center; justify-content: start;
+            z-index: 15; padding-top: 20px;
+            font-size: 10px;
+            pointer-events: auto;
+        }
+        .lb-row {
+            display: flex; justify-content: space-between;
+            width: 80%; margin-bottom: 8px;
+            border-bottom: 1px dashed #333; padding-bottom: 2px;
+        }
+        .lb-rank { color: #d3a068; width: 20px; text-align: left; }
+        .lb-name { color: #fff; text-align: left; flex-grow: 1; margin-left: 10px;}
+        .lb-score { color: #00ff00; }
+
+        /* SCALED DOWN INPUTS */
+        #name-input-container {
+            display: none; margin-top: 5px; flex-direction: column; align-items: center; gap: 5px;
+        }
+        #player-name-input {
+            background: #000; border: 2px solid #00ff00; color: #00ff00;
+            font-family: 'Press Start 2P', cursive; padding: 5px; width: 120px; text-transform: uppercase;
+            text-align: center; font-size: 10px;
+        }
+        .lb-btn {
+            padding: 8px 12px; font-size: 10px; background: #333; border: 2px solid #fff; color: white; margin: 3px; cursor: pointer;
+            font-family: 'Press Start 2P', cursive;
+        }
+        .lb-btn:hover { background: #555; }
+
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes slideDown { 0% { transform: translateY(-30px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        @keyframes scorePulse { 0% { transform: scale(1); } 50% { transform: scale(1.3); text-shadow: 0 0 15px #ffff00; color: #ffff00; } 100% { transform: scale(1); } }
+        .score-pop { animation: scorePulse 1s infinite; }
+
+        /* SCALED DOWN TEXTS */
+        h1 {
+            color: #d3a068;
+            font-size: 22px;
+            margin-bottom: 10px;
+            text-align: center;
+            line-height: 1.5;
+            text-shadow: 4px 4px 0 #4e3328;
+        }
+        
+        .anim-bounce { animation: bounce 1.5s infinite ease-in-out; }
+        .anim-slide { animation: slideDown 0.5s ease-out; }
+
+        #final-score { color: #b45252; font-size: 12px; margin-bottom: 10px; transition: all 0.3s; }
+        #level-msg { font-size: 12px; margin-bottom: 10px; color: #ffff00; text-transform: uppercase; text-shadow: 2px 2px 0 #b45252; text-align: center; width: 100%; }
+
+        button {
+            background: #b45252;
+            color: white;
+            border: 3px solid #fff;
+            padding: 10px 15px; 
+            font-family: 'Press Start 2P', cursive;
+            font-size: 10px; 
+            cursor: pointer;
+            text-transform: uppercase;
+            animation: blink 2s infinite;
+            box-shadow: 0 4px 0 #521b1b;
+        }
+        button:hover { animation: none; background: #d3a068; transform: translateY(2px); box-shadow: 0 2px 0 #521b1b; }
+        button:active { transform: translateY(4px); box-shadow: none; }
+
+        /* ========================================= */
+        /* ENLARGED CONTROLS FOR MOBILE PLAYABILITY */
+        /* ========================================= */
+        #controls-area {
+            width: 100%;
+            height: 320px; /* Taller to fit big buttons */
+            position: relative;
+            margin-top: 20px;
+        }
+
+        /* BIGGER D-PAD (180px total size) */
+        .d-pad {
+            position: absolute;
+            top: 40px; left: 30px;
+            width: 180px; height: 180px; 
+        }
+        .d-pad-bg {
+            position: absolute;
+            background: #333;
+            border-radius: 6px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+        }
+        
+        /* The Cross Shapes (Thicker: 60px) */
+        .d-v { width: 60px; height: 180px; top: 0; left: 60px; } 
+        .d-h { width: 180px; height: 60px; top: 60px; left: 0; }
+        
+        /* The Touch Zones (60px x 60px) */
+        .d-btn {
+            position: absolute; z-index: 10;
+            background: rgba(255, 255, 255, 0.3); 
+            opacity: 0; transition: opacity 0.1s; border-radius: 4px;
+        }
+        .d-btn.active { opacity: 1; }
+        
+        .up { width: 60px; height: 60px; top: 0; left: 60px; }
+        .down { width: 60px; height: 60px; bottom: 0; left: 60px; }
+        .left { width: 60px; height: 60px; top: 60px; left: 0; }
+        .right { width: 60px; height: 60px; top: 60px; right: 0; }
+
+        /* BIGGER ACTION BUTTONS (75px size) */
+        .action-btn-group {
+            position: absolute; 
+            top: 80px; right: 20px;
+            width: 170px; height: 90px; 
+            transform: rotate(-15deg);
+        }
+        .ab-btn {
+            width: 75px; height: 75px;
+            border-radius: 50%; background: #b45252;
+            box-shadow: 2px 4px 0 rgba(0,0,0,0.4), inset -2px -4px 5px rgba(0,0,0,0.2);
+            position: absolute; display: flex; align-items: center; justify-content: center;
+            font-size: 24px; /* Bigger B/A text */
+            color: #521b1b; font-weight: bold;
+            transition: transform 0.1s, background-color 0.1s, box-shadow 0.1s;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        .ab-btn.active { transform: scale(0.95) translateY(2px); box-shadow: 1px 1px 0 rgba(0,0,0,0.4); background-color: #c26161; }
+        
+        .btn-b { bottom: -10px; left: 0; }
+        .btn-a { top: -10px; right: 0; }
+
+        .instructions { font-size: 10px; color: #aaa; margin-top: 15px; text-align: center; line-height: 1.8; }
+        .message-overlay {
+            position: absolute; top: 45%; width: 100%; text-align: center;
+            font-size: 20px; color: #fff; text-shadow: 3px 3px 0 #000; display: none; z-index: 8;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gb-shell">
+        <div id="gb-screen-lens">
+            <div class="lens-text">
+                <span>BATTERY</span>
+                <div class="power-light" id="power-led"></div>
+            </div>
+            
+            <div id="screen-wrapper">
+                <canvas id="gameCanvas" width="320" height="320"></canvas>
+                
+                <div id="ui-layer">
+                    <div id="settings-btn">⚙️</div>
+                    <div id="settings-modal">
+                        <div class="setting-row">
+                            <span>MUSIC</span>
+                            <button id="toggle-music" class="toggle-btn active">ON</button>
+                        </div>
+                        <div class="setting-row">
+                            <span>SFX</span>
+                            <button id="toggle-sfx" class="toggle-btn active">ON</button>
+                        </div>
+                        <button id="close-settings" style="margin-top:10px; padding:5px; font-size:8px;">CLOSE</button>
+                    </div>
+
+                    <div id="hud">
+                        <span id="score-display">SCORE: 0</span>
+                        <span id="lives-display">♥♥</span>
+                        <span id="level-display">LVL: 1</span>
+                        <span id="timer-display"></span>
+                    </div>
+                    <div id="dash-bar-container"><div id="dash-bar"></div></div>
+                </div>
+
+                <div id="leaderboard-screen">
+                    <h1 style="font-size: 18px; margin-bottom: 15px; color:#d3a068;">TOP 10</h1>
+                    <div id="scores-list" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+                        <div style="color: #555;">LOADING...</div>
+                    </div>
+                    <button class="lb-btn" id="close-lb-btn" style="margin-top: auto; margin-bottom: 20px;">CLOSE</button>
+                </div>
+
+                <div id="level10-screen">
+                    <h1 style="font-size: 16px; color: #00ff00;">THANK YOU!</h1>
+                    <p class="l10-text">
+                        To my friend:<br>
+                        Thank you for your support.<br>
+                        I hope you love this game!
+                    </p>
+                    <p class="l10-text" style="color:#d3a068">Would you like to continue?</p>
+                    <div class="l10-btns">
+                        <button id="l10-yes-btn" style="font-size:10px; padding:10px;">YES</button>
+                        <button id="l10-no-btn" style="font-size:10px; padding:10px; background:#555;">NO</button>
+                    </div>
+                </div>
+
+                <div id="start-screen">
+                    <h1 id="game-title" class="anim-bounce">PIXEL<br>CAVERN</h1>
+                    
+                    <div id="end-game-info" class="anim-slide" style="display:none; text-align: center;">
+                        <p id="level-msg">STAGE CLEAR!</p>
+                        <p id="final-score">SCORE: 0</p>
+                        
+                        <div id="name-input-container">
+                            <input type="text" id="player-name-input" maxlength="6" placeholder="NAME">
+                            <button id="submit-score-btn" class="lb-btn" style="background: #b45252;">SUBMIT SCORE</button>
+                        </div>
+                    </div>
+
+                    <button id="start-btn">START GAME</button>
+                    
+                    <button id="view-lb-btn" class="lb-btn" style="margin-top: 10px;">🏆 SCORES</button>
+                    
+                    <div class="instructions">
+                        ARROWS to Move<br>
+                        Z KEY / A-BTN to Dash!
+                    </div>
+                </div>
+                
+                <div id="msg-overlay" class="message-overlay">LEVEL 1</div>
+            </div>
+            
+            <div class="lens-text" style="justify-content: center; margin-top: 10px;">
+                <span>DOT MATRIX WITH STEREO SOUND</span>
+            </div>
+        </div>
+
+        <div id="controls-area">
+            <div class="d-pad">
+                <div class="d-pad-bg d-v"></div>
+                <div class="d-pad-bg d-h"></div>
+                <div class="d-btn up" id="btn-up" data-key="ArrowUp"></div>
+                <div class="d-btn down" id="btn-down" data-key="ArrowDown"></div>
+                <div class="d-btn left" id="btn-left" data-key="ArrowLeft"></div>
+                <div class="d-btn right" id="btn-right" data-key="ArrowRight"></div>
+            </div>
+
+            <div class="action-btn-group">
+                <div class="ab-btn btn-b" id="btn-b">B</div>
+                <div class="ab-btn btn-a" id="btn-a">A</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- FIREBASE CONFIG ---
+// ⚠️ REPLACE THIS WITH YOUR FIREBASE KEYS ⚠️
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// Initialize Firebase
+let db;
+try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+} catch (e) {
+    console.error("Firebase not configured yet", e);
+}
+
+// --- LEADERBOARD LOGIC ---
+const lbScreen = document.getElementById('leaderboard-screen');
+const scoresList = document.getElementById('scores-list');
+const nameInputContainer = document.getElementById('name-input-container');
+const nameInput = document.getElementById('player-name-input');
+const submitScoreBtn = document.getElementById('submit-score-btn');
+const viewLbBtn = document.getElementById('view-lb-btn');
+const closeLbBtn = document.getElementById('close-lb-btn');
+
+async function loadLeaderboard() {
+    scoresList.innerHTML = '<div style="color: #888;">LOADING...</div>';
+    if(!db) { scoresList.innerHTML = '<div style="color: #b45252;">DB NOT SET</div>'; return; }
+
+    try {
+        const q = db.collection("scores").orderBy("score", "desc").limit(10);
+        const querySnapshot = await q.get();
+        scoresList.innerHTML = '';
+        
+        let rank = 1;
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            const row = document.createElement('div');
+            row.className = 'lb-row';
+            row.innerHTML = `
+                <span class="lb-rank">#${rank}</span>
+                <span class="lb-name">${data.name}</span>
+                <span class="lb-score">${data.score}</span>
+            `;
+            scoresList.appendChild(row);
+            rank++;
+        });
+        
+        if (querySnapshot.empty) {
+            scoresList.innerHTML = '<div style="color: #555;">NO SCORES YET</div>';
+        }
+    } catch (error) {
+        console.error("Error getting scores: ", error);
+        scoresList.innerHTML = '<div style="color: #b45252;">ERROR LOADING DB</div>';
+    }
+}
+
+async function saveScore() {
+    const name = nameInput.value.toUpperCase() || "ANON";
+    const finalScore = score;
+    
+    if(!db) { alert("Database not connected!"); return; }
+    
+    submitScoreBtn.textContent = "...";
+    try {
+        await db.collection("scores").add({
+            name: name,
+            score: finalScore,
+            date: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        nameInputContainer.style.display = 'none';
+        startScreen.style.display = 'none';
+        lbScreen.style.display = 'flex';
+        loadLeaderboard();
+        submitScoreBtn.textContent = "SUBMIT SCORE"; 
+    } catch (e) {
+        console.error("Error adding score: ", e);
+        submitScoreBtn.textContent = "ERROR";
+    }
+}
+
+viewLbBtn.addEventListener('click', () => {
+    startScreen.style.display = 'none';
+    lbScreen.style.display = 'flex';
+    loadLeaderboard();
+});
+
+closeLbBtn.addEventListener('click', () => {
+    lbScreen.style.display = 'none';
+    startScreen.style.display = 'flex';
+});
+
+submitScoreBtn.addEventListener('click', saveScore);
+
+// --- GAME LOGIC ---
+
+const CANVAS_SIZE = 320; 
+const GAME_SPEED = 1000 / 60;
+const DASH_DURATION = 15; 
+const DASH_COOLDOWN = 60; 
+const INVULNERABLE_DURATION = 300; 
+
+const NOTES = {
+    'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'Ab2': 103.83, 'A2': 110.00, 'Bb2': 116.54, 'B2': 123.47,
+    'C3': 130.81, 'C#3': 138.59, 'Db3': 138.59, 'D3': 146.83, 'Eb3': 155.56, 'E3': 164.81, 'F3': 174.61, 'F#3': 185.00, 'G3': 196.00, 'G#3': 207.65, 'Ab3': 207.65, 'A3': 220.00, 'Bb3': 233.08, 'B3': 246.94,
+    'C4': 261.63, 'C#4': 277.18, 'Db4': 277.18, 'D4': 293.66, 'D#4': 311.13, 'Eb4': 311.13, 'E4': 329.63, 'F4': 349.23, 'F#4': 369.99, 'Gb4': 369.99, 'G4': 392.00, 'G#4': 415.30, 'Ab4': 415.30, 'A4': 440.00, 'A#4': 466.16, 'Bb4': 466.16, 'B4': 493.88,
+    'C5': 523.25, 'C#5': 554.37, 'D5': 587.33, 'D#5': 622.25, 'Eb5': 622.25, 'E5': 659.25, 'F5': 698.46, 'F#5': 739.99, 'G5': 783.99, 'G#5': 830.61, 'A5': 880.00,
+    'Bb5': 932.33, 'B5': 987.77, 'C6': 1046.50, 'C#6': 1108.73, 'D6': 1174.66, 'Eb6': 1244.51, 'E6': 1318.51, 'F6': 1396.91,
+    'G6': 1567.98, 'G#6': 1661.22, 'A6': 1760.00, 'B6': 1975.53,
+    'C7': 2093.00, 'D7': 2349.32, 'E7': 2637.02, 'F7': 2793.83,
+    'XX': 0 
+};
+
+const SONGS = {
+    victory: {
+        tempo: 140,
+        lead: ['C5','E5','G5','C6', 'E6','G6','C7','XX', 'C7','XX','XX','XX', 'XX','XX','XX','XX'],
+        bass: ['C3','C3','E3','E3', 'G3','G3','C4','XX', 'C4','XX','XX','XX', 'XX','XX','XX','XX']
+    },
+    gameover: {
+        tempo: 150,
+        lead: ['C5','B4','Bb4','A4', 'Ab4','G4','Gb4','F4', 'E4','Eb4','D4','Db4', 'C4','XX','XX','XX'],
+        bass: ['F#4','F4','E4','Eb4', 'D4','Db4','C4','B3', 'Bb3','A3','Ab3','G3', 'C3','XX','XX','XX']
+    },
+    intro: {
+        tempo: 280,
+        lead: [
+            'A4','XX','C5','XX','E5','XX','C5','XX', 'B4','XX','D5','XX','F5','XX','E5','XX', 'A5','XX','G5','XX','E5','XX','C5','XX', 'E5','XX','G5','XX','XX','XX','XX','XX',
+            'C5','XX','D5','XX','E5','XX','G5','XX', 'A5','XX','XX','XX','F5','XX','XX','XX', 'E5','XX','G5','XX','A5','XX','C6','XX', 'B5','XX','A5','XX','XX','XX','XX','XX',
+            'A4','XX','E5','XX','G5','XX','F#5','XX', 'D5','XX','XX','XX','F5','XX','E5','XX', 'E5','XX','C5','XX','A4','XX','G4','XX', 'C5','XX','E5','XX','XX','XX','XX','XX',
+            'E5','XX','G5','XX','A5','XX','B5','XX', 'F5','XX','D5','XX','B4','XX','XX','XX', 'C6','XX','B5','XX','A5','XX','G5','XX', 'A4','XX','XX','XX','XX','XX','XX','XX'
+        ],
+        bass: [
+            'A2','XX','XX','XX', 'E2','XX','XX','XX', 'B2','XX','XX','XX', 'D3','XX','XX','XX', 'A2','XX','XX','XX', 'G2','XX','XX','XX', 'E2','XX','XX','XX', 'XX','XX','XX','XX',
+            'C3','XX','XX','XX', 'A2','XX','XX','XX', 'A2','XX','XX','XX', 'F2','XX','XX','XX', 'E2','XX','XX','XX', 'A2','XX','XX','XX', 'B2','XX','XX','XX', 'XX','XX','XX','XX',
+            'A2','XX','XX','XX', 'E2','XX','XX','XX', 'D3','XX','XX','XX', 'F2','XX','XX','XX', 'E2','XX','XX','XX', 'C3','XX','XX','XX', 'C3','XX','XX','XX', 'XX','XX','XX','XX',
+            'E2','XX','XX','XX', 'XX','XX','XX','XX', 'F2','XX','XX','XX', 'XX','XX','XX','XX', 'C3','XX','XX','XX', 'XX','XX','XX','XX', 'A2','XX','XX','XX', 'XX','XX','XX','XX'
+        ]
+    },
+    swarm: {
+        tempo: 290, 
+        lead: ['E5','XX','G5','XX','A5','XX','G5','XX', 'F5','XX','E5','XX','D5','XX','C5','XX', 'G5','XX','A5','XX','C6','XX','A5','XX', 'E5','XX','XX','XX','XX','XX','XX','XX', 'C5','XX','E5','XX','G5','XX','A5','XX', 'B5','XX','G5','XX','A5','XX','XX','XX', 'A5','XX','G5','XX','E5','XX','D5','XX', 'C5','XX','XX','XX','XX','XX','XX','XX', 'G5','XX','A5','XX','B5','XX','C6','XX', 'A5','XX','G5','XX','F5','XX','E5','XX', 'D5','XX','F5','XX','A5','XX','G5','XX', 'E5','XX','XX','XX','XX','XX','XX','XX', 'C6','XX','B5','XX','A5','XX','G5','XX', 'F5','XX','E5','XX','G5','XX','XX','XX', 'A5','XX','G5','XX','E5','XX','C5','XX', 'C5','XX','XX','XX','XX','XX','XX','XX'],
+        bass: ['C3','XX','E3','XX','G3','XX','A3','XX', 'F3','XX','A3','XX','F3','XX','D3','XX', 'G3','XX','B2','XX','C3','XX','D3','XX', 'E3','XX','XX','XX','XX','XX','XX','XX', 'C3','XX','E3','XX','G3','XX','A3','XX', 'B2','XX','D3','XX','F3','XX','G3','XX', 'A3','XX','F3','XX','D3','XX','E3','XX', 'C3','XX','XX','XX','XX','XX','XX','XX', 'G3','XX','B3','XX','D4','XX','E4','XX', 'A3','XX','F3','XX','E3','XX','D3','XX', 'D3','XX','F3','XX','A3','XX','B3','XX', 'E3','XX','XX','XX','XX','XX','XX','XX', 'C3','XX','G3','XX','E3','XX','F3','XX', 'F3','XX','A3','XX','G3','XX','E3','XX', 'A3','XX','F3','XX','D3','XX','G3','XX', 'C3','XX','XX','XX','XX','XX','XX','XX'],
+        drums: ['HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX','HIT','XX','XX','XX']
+    },
+    danger: {
+        tempo: 330, 
+        lead: ['E5','XX','A5','XX','G5','XX','B5','XX','A5','XX','G5','XX','F5','XX','D#5','XX','G5','XX','Bb5','XX','C6','XX','Bb5','XX','A5','XX','XX','XX','XX','XX','XX','XX','D6','XX','C6','XX','A5','XX','G5','XX','B5','XX','XX','XX','G5','XX','Bb5','XX','A5','XX','G#5','XX','F5','XX','D5','XX','C5','XX','XX','XX','XX','XX','XX','XX'],
+        bass: ['C3','XX','E3','XX','G#3','XX','A3','XX','F3','XX','A3','XX','F#3','XX','E3','XX','G3','XX','Bb2','XX','B2','XX','C3','XX','G3','XX','XX','XX','XX','XX','XX','XX','C3','XX','F3','XX','G3','XX','A3','XX','B2','XX','F#3','XX','G3','XX','F3','XX','A3','XX','F3','XX','E3','XX','D3','XX','C3','XX','XX','XX','XX','XX','XX','XX'],
+        drums: ['HIT','HIT','HIT','XX','HIT','XX','HIT','HIT', 'HIT','HIT','HIT','XX','HIT','XX','HIT','HIT', 'HIT','HIT','HIT','XX','HIT','XX','HIT','HIT', 'HIT','HIT','HIT','XX','HIT','XX','HIT','HIT', 'HIT','HIT','HIT','XX','HIT','XX','HIT','HIT', 'HIT','HIT','HIT','XX','HIT','XX','HIT','HIT', 'HIT','HIT','HIT','XX','HIT','XX','HIT','HIT', 'HIT','HIT','HIT','XX','HIT','XX','HIT','HIT']
+    },
+    marching: {
+        tempo: 376, 
+        lead: ['G5','XX','Bb5','XX','C6','XX','Bb5','XX', 'A5','XX','G5','XX','F#5','XX','E5','XX', 'A5','XX','C6','XX','D6','XX','C6','XX', 'Bb5','XX','XX','XX','XX','XX','XX','XX', 'C6','XX','D6','XX','Bb5','XX','A5','XX', 'G5','XX','F5','XX','E5','XX','F#5','XX', 'A5','XX','G5','XX','F5','XX','D#5','XX', 'E5','XX','XX','XX','XX','XX','XX','XX'],
+        bass: ['C3','XX','G3','XX','Ab3','XX','B3','XX', 'F3','XX','C4','XX','B3','XX','Bb3','XX', 'A3','XX','C4','XX','Eb4','XX','E4','XX', 'G3','XX','XX','XX','XX','XX','XX','XX', 'C3','XX','Bb2','XX','A2','XX','Ab2','XX', 'G2','XX','Bb2','XX','C3','XX','Db3','XX', 'A2','XX','Eb3','XX','F3','XX','E3','XX', 'C3','XX','XX','XX','XX','XX','XX','XX'],
+        drums: ['HIT','XX','HIT','XX','HIT','XX','HIT','XX', 'HIT','XX','HIT','XX','HIT','XX','HIT','XX', 'HIT','XX','HIT','XX','HIT','XX','HIT','XX', 'HIT','XX','HIT','XX','HIT','XX','HIT','XX', 'HIT','XX','HIT','XX','HIT','XX','HIT','XX', 'HIT','XX','HIT','XX','HIT','XX','HIT','XX', 'HIT','XX','HIT','XX','HIT','XX','HIT','XX', 'HIT','XX','HIT','XX','HIT','XX','HIT','XX']
+    },
+    venom_p1: {
+        tempo: 320,
+        lead: [
+            'A4','C5','E5','A5','Bb5','A5','G5','F5', 'E5','D5','C#5','D5','E5','XX','A4','XX',
+            'A5','C6','C#6','D6','E6','D6','C#6','Bb5', 'A5','G#5','G5','F#5','F5','E5','D5','C#5',
+            'A5','C6','E6','A5','Bb5','A5','G5','F5', 'E5','F5','G5','F5','E5','D5','C#5','Bb4',
+            'A4','C#5','E5','G5','Bb5','C6','C#6','E6', 'A5','XX','XX','XX','XX','XX','XX','XX'
+        ],
+        bass: [
+            'A2','XX','E3','XX','G3','XX','A3','XX', 'A3','XX','C4','XX','B3','XX','A3','XX', 'D3','XX','A3','XX','C4','XX','D4','XX', 'E3','XX','XX','XX','XX','XX','XX','XX',
+            'A2','XX','C3','XX','E3','XX','F3','XX', 'G3','XX','F3','XX','E3','XX','C3','XX', 'A2','XX','G#2','XX','A2','XX','C3','XX', 'E3','XX','XX','XX','XX','XX','XX','XX',
+            'A2','XX','E3','XX','G3','XX','A3','XX', 'A3','XX','C4','XX','B3','XX','A3','XX', 'D3','XX','A3','XX','C4','XX','D4','XX', 'E3','XX','XX','XX','XX','XX','XX','XX',
+            'A2','XX','C3','XX','E3','XX','F3','XX', 'G3','XX','F3','XX','E3','XX','C3','XX', 'A2','XX','G#2','XX','A2','XX','C3','XX', 'E3','XX','XX','XX','XX','XX','XX','XX'
+        ],
+        drums: [
+            'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX',
+            'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX',
+            'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX',
+            'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX', 'K','XX','XX','XX','S','XX','XX','XX'
+        ]
+    },
+    venom_p2: {
+        tempo: 360,
+        lead: [
+            'A4','C5','E5','A5','Bb5','A5','G5','F5', 'E5','D5','C#5','D5','E5','XX','A4','XX',
+            'A5','C6','C#6','D6','E6','D6','C#6','Bb5', 'A5','G#5','G5','F#5','F5','E5','D5','C#5',
+            'A5','C6','E6','A5','Bb5','A5','G5','F5', 'E5','F5','G5','F5','E5','D5','C#5','Bb4',
+            'A4','C#5','E5','G5','Bb5','C6','C#6','E6', 'A5','XX','XX','XX','XX','XX','XX','XX'
+        ],
+        bass: [
+            'A2','A2','E3','E3','G3','G3','A3','A3', 'A3','A3','C4','C4','B3','B3','A3','A3', 'D3','D3','A3','A3','C4','C4','D4','D4', 'E3','XX','XX','XX','XX','XX','XX','XX',
+            'A2','A2','C3','C3','E3','E3','F3','F3', 'G3','G3','F3','F3','E3','E3','C3','C3', 'A2','A2','G#2','G#2','A2','A2','C3','C3', 'E3','XX','XX','XX','XX','XX','XX','XX',
+            'A2','A2','E3','E3','G3','G3','A3','A3', 'A3','A3','C4','C4','B3','B3','A3','A3', 'D3','D3','A3','A3','C4','C4','D4','D4', 'E3','XX','XX','XX','XX','XX','XX','XX',
+            'A2','A2','C3','C3','E3','E3','F3','F3', 'G3','G3','F3','F3','E3','E3','C3','C3', 'A2','A2','G#2','G#2','A2','A2','C3','C3', 'E3','XX','XX','XX','XX','XX','XX','XX'
+        ],
+        drums: [
+            'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX',
+            'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX',
+            'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX',
+            'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX', 'K_t','XX','XX','XX','K_t','XX','XX','XX'
+        ]
+    },
+    venom_full: {
+        tempo: 400, 
+        lead: [
+            'A4','C5','E5','A5','Bb5','A5','G5','F5', 'E5','D5','C#5','D5','E5','XX','A4','XX',
+            'A5','C6','C#6','D6','E6','D6','C#6','Bb5', 'A5','G#5','G5','F#5','F5','E5','D5','C#5',
+            'A5','C6','E6','A5','Bb5','A5','G5','F5', 'E5','F5','G5','F5','E5','D5','C#5','Bb4',
+            'A4','C#5','E5','G5','Bb5','C6','C#6','E6', 'A5','XX','XX','XX','XX','XX','XX','XX'
+        ],
+        bass: [
+            'A2','A2','A2','A2','Bb2','Bb2','Bb2','Bb2', 'A2','A2','A2','A2','G#2','G#2','G#2','G#2', 'A2','A2','C3','C3','D3','D3','E3','E3', 'F3','E3','D3','C3','Bb2','A2','G#2','E2',
+            'A2','A2','A2','A2','Bb2','Bb2','Bb2','Bb2', 'C3','C3','C3','C3','C#3','C#3','C#3','C#3', 'D3','D3','E3','E3','F3','F3','G3','G3', 'A2','XX','A2','XX','A2','XX','XX','XX',
+            'A2','A2','A2','A2','Bb2','Bb2','Bb2','Bb2', 'A2','A2','A2','A2','G#2','G#2','G#2','G#2', 'A2','A2','C3','C3','D3','D3','E3','E3', 'F3','E3','D3','C3','Bb2','A2','G#2','E2',
+            'A2','A2','A2','A2','Bb2','Bb2','Bb2','Bb2', 'C3','C3','C3','C3','C#3','C#3','C#3','C#3', 'D3','D3','E3','E3','F3','F3','G3','G3', 'A2','XX','A2','XX','A2','XX','XX','XX'
+        ],
+        drums: [
+            'K_H','S_h','K_H','S_h','K_H','S_h','K_H','S_h', 'K_H','S_h','K_H','S_h','K_H','S_h','K_t','t',
+            'K_H','S_h','K_H','S_h','K_H','S_h','K_H','S_h', 'K_K','S','K_K','S','K','S','K','S', 
+            'K_H','S_h','K_H','S_h','K_H','S_h','K_H','S_h', 'K_H','S_h','K_H','S_h','K_H','S_h','K_t','t',
+            'K','S','K','S','K','S','K','S', 'K_S_H','XX','K_S_H','XX','K_S_H','XX','XX','XX',
+            'K_H','S_h','K_H','S_h','K_H','S_h','K_H','S_h', 'K_H','S_h','K_H','S_h','K_H','S_h','K_t','t',
+            'K_H','S_h','K_H','S_h','K_H','S_h','K_H','S_h', 'K_K','S','K_K','S','K','S','K','S'
+        ]
+    },
+    chaos_p1: {
+        tempo: 300, 
+        lead: [
+            'D5','F5','A5','D6', 'A5','F5','D5','A4', 'F5','XX','E5','XX', 'D5','C#5','D5','E5',
+            'Bb4','D5','F5','Bb5', 'F5','D5','Bb4','F4', 'A4','G4','F4','E4', 'F4','E4','D4','C#4',
+            'D5','F5','A5','D6', 'F6','E6','D6','C#6', 'D6','A5','F5','D5', 'F5','E5','F5','G5',
+            'A5','G5','F5','E5', 'D5','C#5','D5','E5', 'F5','E5','D5','C#5', 'D5','XX','XX','XX'
+        ],
+        bass: [
+            'D3','XX','D3','XX', 'D3','XX','D3','XX', 'A2','XX','A2','XX', 'A2','XX','A2','XX',
+            'Bb2','XX','Bb2','XX', 'Bb2','XX','Bb2','XX', 'A2','XX','A2','XX', 'A2','XX','A2','XX',
+            'D3','XX','D3','XX', 'D3','XX','D3','XX', 'F3','XX','F3','XX', 'F3','XX','F3','XX',
+            'G3','XX','G3','XX', 'G3','XX','G3','XX', 'A2','XX','A2','XX', 'D3','XX','XX','XX'
+        ],
+        drums: [
+            'K','XX','h','XX', 'S','XX','h','XX', 'K','XX','K','XX', 'S','XX','h','XX',
+            'K','XX','h','XX', 'S','XX','h','XX', 'K','h','S','h', 'K','h','S','h',
+            'K','XX','h','XX', 'S','XX','h','XX', 'K','XX','K','XX', 'S','XX','h','XX',
+            'K','XX','h','XX', 'S','XX','h','XX', 'K','h','K','h', 'S','XX','XX','XX'
+        ]
+    },
+    chaos_p2: {
+        tempo: 330, 
+        lead: [
+            'D5','XX','XX','F5', 'XX','A5','XX','D6', 'C#6','XX','A5','XX', 'E5','XX','A4','XX',
+            'Bb5','XX','G5','XX', 'E5','XX','C#5','XX', 'D5','F5','A5','D6', 'C#6','A5','E5','C#5',
+            'D6','C6','Bb5','A5', 'G5','F5','E5','D5', 'C#5','E5','A5','C#6', 'E6','C#6','A5','E5',
+            'F5','G#5','B5','D6', 'F6','D6','B5','G#5', 'A5','XX','XX','XX', 'XX','XX','XX','XX'
+        ],
+        bass: [
+            'D3','XX','D3','XX', 'F3','XX','D3','XX', 'A2','XX','A2','XX', 'C#3','XX','A2','XX',
+            'G3','XX','E3','XX', 'C#3','XX','A2','XX', 'D3','F3','A3','D4', 'A3','F3','D3','A2',
+            'Bb2','XX','Bb2','XX', 'G2','XX','G2','XX', 'A2','XX','A2','XX', 'C#3','XX','C#3','XX',
+            'D3','XX','F3','XX', 'E3','XX','E3','XX', 'A2','XX','A2','XX', 'A2','XX','XX','XX'
+        ],
+        drums: [
+            'K','XX','K','XX', 'S','XX','h','XX', 'XX','K','XX','K', 'S','XX','h','XX',
+            'K','XX','h','XX', 'S','XX','K','K', 'h','XX','S','XX', 'K','XX','h','XX',
+            'K','XX','K','XX', 'S','XX','h','XX', 'XX','K','XX','K', 'S','XX','h','XX',
+            'K','XX','h','XX', 'S','XX','K','K', 'S','S','S','S', 'S','XX','XX','XX'
+        ]
+    },
+    chaos_full: {
+        tempo: 360, 
+        lead: [
+            'D6','C#6','C6','B5', 'Bb5','A5','Ab5','G5', 'F#5','F5','E5','Eb5', 'D5','C#5','C5','B4',
+            'Bb4','B4','C5','C#5', 'D5','Eb5','E5','F5', 'F#5','G5','Ab5','A5', 'Bb5','B5','C6','C#6',
+            'D6','XX','XX','A5', 'F6','XX','XX','D6', 'E6','XX','XX','C#6', 'A6','XX','XX','E6',
+            'D6','F6','E6','D6', 'C#6','E6','D6','C#6', 'D6','XX','A5','XX', 'D5','XX','XX','XX'
+        ],
+        bass: [
+            'D3','D3','D3','D3', 'C#3','C#3','C#3','C#3', 'C3','C3','C3','C3', 'B2','B2','B2','B2',
+            'Bb2','Bb2','Bb2','Bb2', 'A2','A2','A2','A2', 'Ab2','Ab2','Ab2','Ab2', 'G2','G2','G2','G2',
+            'D3','D3','F3','F3', 'A3','A3','D4','D4', 'A2','A2','C#3','C#3', 'E3','E3','A3','A3',
+            'D3','F3','A3','D4', 'A2','C#3','E3','A3', 'D3','XX','A2','XX', 'D2','XX','XX','XX'
+        ],
+        drums: [
+            'K','h','S','h', 'K','h','S','h', 'K','h','S','h', 'K','K','S','h',
+            'K','h','S','h', 'K','h','S','h', 'K','K','S','K', 'K','S','K','S',
+            'K','h','S','h', 'K','h','S','h', 'K','h','S','h', 'K','K','S','h',
+            'K','K','S','S', 'K','K','S','S', 'K','S','K','S', 'K','XX','XX','XX'
+        ]
+    },
+    hero_extended: {
+        tempo: 350, // 175 BPM * 2
+        lead: [
+            // SECTION A: Am - F - C - G (Driving)
+            'A4','C5','E5','A5', 'E5','C5','A4','XX', 'F4','A4','C5','F5', 'C5','A4','F4','XX',
+            'C5','E5','G5','C6', 'G5','E5','C5','XX', 'G4','B4','D5','G5', 'D5','B4','G4','XX',
+            'A4','C5','E5','A5', 'E5','C5','A4','XX', 'F4','A4','C5','F5', 'C5','A4','F4','XX',
+            'C5','E5','G5','C6', 'G5','E5','C5','XX', 'G4','B4','D5','G5', 'D5','B4','G4','XX',
+            // SECTION B: Am - G - F - E (Tension)
+            'A5','G5','F5','E5', 'F5','E5','D5','C5', 'G5','F5','E5','D5', 'E5','D5','C5','B4',
+            'F5','E5','D5','C5', 'D5','C5','B4','A4', 'E5','D5','C5','B4', 'C5','B4','A4','G#4',
+            // SECTION C: F - G - Am - C (Hopeful)
+            'F5','A5','C6','F6', 'C6','A5','F5','XX', 'G5','B5','D6','G6', 'D6','B5','G5','XX',
+            'A5','C6','E6','A6', 'E6','C6','A5','XX', 'C6','E6','G6','C7', 'G6','E6','C6','XX',
+            // SECTION D: Climax Dm - F - E
+            'D6','F6','A6','D7', 'A6','F6','D6','XX', 'F6','A6','C7','F7', 'C7','A6','F6','XX',
+            'E6','G#6','B6','E7', 'B6','G#6','E6','XX', 'A5','C6','E6','A6', 'XX','XX','XX','XX'
+        ],
+        bass: [
+            // SECTION A
+            'A2','A2','A2','A2', 'A2','A2','A2','A2', 'F2','F2','F2','F2', 'F2','F2','F2','F2',
+            'C3','C3','C3','C3', 'C3','C3','C3','C3', 'G2','G2','G2','G2', 'G2','G2','G2','G2',
+            'A2','A2','A2','A2', 'A2','A2','A2','A2', 'F2','F2','F2','F2', 'F2','F2','F2','F2',
+            'C3','C3','C3','C3', 'C3','C3','C3','C3', 'G2','G2','G2','G2', 'G2','G2','G2','G2',
+            // SECTION B
+            'A2','XX','A2','XX', 'A2','XX','A2','XX', 'G2','XX','G2','XX', 'G2','XX','G2','XX',
+            'F2','XX','F2','XX', 'F2','XX','F2','XX', 'E2','XX','E2','XX', 'E2','XX','E2','XX',
+            // SECTION C
+            'F2','F2','A2','A2', 'C3','C3','F3','F3', 'G2','G2','B2','B2', 'D3','D3','G3','G3',
+            'A2','A2','C3','C3', 'E3','E3','A3','A3', 'C3','C3','E3','E3', 'G3','G3','C4','C4',
+            // SECTION D
+            'D3','D3','D3','D3', 'D3','D3','D3','D3', 'F3','F3','F3','F3', 'F3','F3','F3','F3',
+            'E3','E3','E3','E3', 'E3','E3','E3','E3', 'A2','XX','A2','XX', 'A2','XX','XX','XX'
+        ],
+        drums: [
+            // Fast driving beat
+            'K','h','S','h', 'K','h','S','h', 'K','h','S','h', 'K','h','S','h',
+            'K','h','S','h', 'K','h','S','h', 'K','h','S','h', 'K','h','S','h',
+            'K','h','S','h', 'K','h','S','h', 'K','h','S','h', 'K','h','S','h',
+            'K','h','S','h', 'K','h','S','h', 'K','h','S','h', 'K','h','S','h',
+            // Tension
+            'K','K','S','h', 'K','K','S','h', 'K','K','S','h', 'K','K','S','h',
+            'K','K','S','h', 'K','K','S','h', 'K','K','S','h', 'K','K','S','h',
+            // Hopeful
+            'K','h','S','h', 'K','K','S','h', 'K','h','S','h', 'K','K','S','h',
+            'K','h','S','h', 'K','K','S','h', 'K','h','S','h', 'K','K','S','h',
+            // Climax
+            'K','S','K','S', 'K','S','K','S', 'K','S','K','S', 'K','S','K','S',
+            'K','S','K','S', 'K','S','K','S', 'K','S','K','S', 'K','XX','XX','XX'
+        ]
+    }
+};
+
+let musicCtx = null;
+let currentSong = null;
+let nextNoteTime = 0;
+let noteIndex = 0;
+let isMusicPlaying = false;
+let musicTimerId = null;
+let hasUserInteracted = false;
+
+// AUDIO SETTINGS
+let musicOn = true;
+let sfxOn = true;
+
+// SETTINGS UI LOGIC
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const musicToggle = document.getElementById('toggle-music');
+const sfxToggle = document.getElementById('toggle-sfx');
+const closeSettings = document.getElementById('close-settings');
+
+settingsBtn.addEventListener('click', () => {
+    settingsModal.style.display = 'flex';
+    isPaused = true;
+});
+
+closeSettings.addEventListener('click', () => {
+    settingsModal.style.display = 'none';
+    // Resume game only if not in a special menu state
+    if(document.getElementById('level10-screen').style.display === 'none' && 
+       document.getElementById('start-screen').style.display === 'none' && 
+       !isGameOver) {
+        isPaused = false;
+        loop();
+    }
+});
+
+musicToggle.addEventListener('click', () => {
+    musicOn = !musicOn;
+    musicToggle.textContent = musicOn ? "ON" : "OFF";
+    musicToggle.className = musicOn ? "toggle-btn active" : "toggle-btn";
+    if(musicOn) {
+        // Resume current track if there was one
+        if(currentSong) {
+            let songName = currentSong;
+            currentSong = null; // Force restart
+            playMusic(songName);
+        }
+    } else {
+        stopMusic();
+    }
+});
+
+sfxToggle.addEventListener('click', () => {
+    sfxOn = !sfxOn;
+    sfxToggle.textContent = sfxOn ? "ON" : "OFF";
+    sfxToggle.className = sfxOn ? "toggle-btn active" : "toggle-btn";
+});
+
+function initMusic() {
+    if (!musicCtx) musicCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function startTitleMusic() {
+    if (hasUserInteracted) return;
+    hasUserInteracted = true;
+    initAudio(); 
+    if (document.getElementById('start-screen').style.display !== 'none') {
+        playMusic('intro');
+    }
+    window.removeEventListener('click', startTitleMusic);
+    window.removeEventListener('keydown', startTitleMusic);
+    window.removeEventListener('touchstart', startTitleMusic);
+}
+
+function playMusic(songName) {
+    if (!musicOn) {
+        currentSong = songName; // Store intended song
+        return; 
+    }
+    initMusic();
+    if (currentSong === songName && isMusicPlaying) return; 
+    stopMusic();
+    const songData = SONGS[songName];
+    if (!songData) return;
+    currentSong = songName;
+    isMusicPlaying = true;
+    noteIndex = 0;
+    nextNoteTime = musicCtx.currentTime;
+    scheduleMusic(songData);
+}
+
+function stopMusic() {
+    isMusicPlaying = false;
+    if(musicTimerId) clearTimeout(musicTimerId);
+}
+
+function scheduleMusic(song) {
+    if (!isMusicPlaying) return;
+    const secondsPerBeat = 60.0 / song.tempo;
+    while (nextNoteTime < musicCtx.currentTime + 0.1) {
+        // Loop melody/bass independently if lengths differ
+        let leadIdx = noteIndex % song.lead.length;
+        let bassIdx = noteIndex % song.bass.length;
+        
+        playNote(song.lead[leadIdx], nextNoteTime, 'square', 0.1);
+        playNote(song.bass[bassIdx], nextNoteTime, 'triangle', 0.15);
+        
+        if(song.drums && song.drums.length > 0) {
+            let drumIdx = noteIndex % song.drums.length;
+            let drumHit = song.drums[drumIdx];
+            if(drumHit && drumHit !== 'XX') parseAndPlayDrums(drumHit, nextNoteTime);
+        }
+
+        nextNoteTime += secondsPerBeat;
+        noteIndex++;
+    }
+    musicTimerId = setTimeout(() => scheduleMusic(song), 25);
+}
+
+function playNote(noteName, time, type, vol) {
+    if (noteName === 'XX' || !NOTES[noteName]) return;
+    const osc = musicCtx.createOscillator();
+    const gain = musicCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = NOTES[noteName];
+    gain.gain.setValueAtTime(vol, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+    osc.connect(gain);
+    gain.connect(musicCtx.destination);
+    osc.start(time);
+    osc.stop(time + 0.15);
+}
+
+// NEW DRUM SYNTHESIZER
+function playDrum(time) {
+    const bufferSize = musicCtx.sampleRate * 0.08; 
+    const buffer = musicCtx.createBuffer(1, bufferSize, musicCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const noise = musicCtx.createBufferSource();
+    noise.buffer = buffer;
+    const gain = musicCtx.createGain();
+    const filter = musicCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 1000;
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(musicCtx.destination);
+    gain.gain.setValueAtTime(0.3, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.08);
+    noise.start(time);
+}
+
+// KICK DRUM
+function playKick(time) {
+    const osc = musicCtx.createOscillator();
+    const gain = musicCtx.createGain();
+    osc.frequency.setValueAtTime(150, time);
+    osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+    gain.gain.setValueAtTime(0.5, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+    osc.connect(gain);
+    gain.connect(musicCtx.destination);
+    osc.start(time);
+    osc.stop(time + 0.5);
+}
+
+// SNARE DRUM
+function playSnare(time) {
+    const bufferSize = musicCtx.sampleRate * 0.1; 
+    const buffer = musicCtx.createBuffer(1, bufferSize, musicCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const noise = musicCtx.createBufferSource();
+    noise.buffer = buffer;
+    const gain = musicCtx.createGain();
+    const filter = musicCtx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 800; // Crisp snare
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(musicCtx.destination);
+    gain.gain.setValueAtTime(0.3, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+    noise.start(time);
+}
+
+// HI-HAT
+function playHat(time, isAccent) {
+    const dur = isAccent ? 0.08 : 0.03;
+    const vol = isAccent ? 0.15 : 0.05; 
+    const bufferSize = musicCtx.sampleRate * dur; 
+    const buffer = musicCtx.createBuffer(1, bufferSize, musicCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const noise = musicCtx.createBufferSource();
+    noise.buffer = buffer;
+    const gain = musicCtx.createGain();
+    const filter = musicCtx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = 10000; // Sizzle
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(musicCtx.destination);
+    gain.gain.setValueAtTime(vol, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + dur);
+    noise.start(time);
+}
+
+function parseAndPlayDrums(code, time) {
+    if(code === 'HIT') { playDrum(time); return; }
+    if(code.includes('K')) playKick(time);
+    if(code.includes('S')) playSnare(time);
+    if(code.includes('H')) playHat(time, true); // Open/Accent
+    else if(code.includes('h')) playHat(time, false); // Closed/Ghost
+    else if(code.includes('T')) playHat(time, true); // Alias for H
+    else if(code.includes('t')) playHat(time, false); // Alias for h
+}
+
+/**
+ * LEVELS
+ */
+const LEVELS = [
+    { id: 1, targetScore: 100, type: 'chaser', spawnRate: 180, spawnCount: 2, speedLevel: 1, bg: ['#1a1016', '#20141c'], msg: "THE SWARM BEGINS", music: 'swarm' },
+    { id: 2, targetScore: 300, type: 'chaser', spawnRate: 150, spawnCount: 3, speedLevel: 2, bg: ['#1a1016', '#20141c'], msg: "FASTER...", music: 'danger' },
+    { id: 3, targetScore: 500, type: 'chaser', spawnRate: 120, spawnCount: 4, speedLevel: 3, bg: ['#1a1016', '#20141c'], msg: "SURVIVE!", music: 'marching' },
+    { id: 4, targetScore: 1000, timeLimit: 300, type: 'snake', snakeLen: 5, speedLevel: 4, bg: ['#2b0d0d', '#3d1212'], msg: "IT COMBINED!", music: 'venom_p1' },
+    { id: 5, targetScore: 1000, timeLimit: 300, type: 'snake', snakeLen: 8, speedLevel: 5, bg: ['#2b0d0d', '#3d1212'], msg: "IT GROWS...", music: 'venom_p2' },
+    { id: 6, targetScore: 1000, timeLimit: 300, type: 'snake', snakeLen: 12, speedLevel: 6, bg: ['#2b0d0d', '#3d1212'], msg: "GIANT SERPENT", music: 'venom_full' }, 
+    { id: 7, targetScore: 1500, type: 'bouncer', spawnRate: 60, spawnCount: 1, speedLevel: 7, bg: ['#0d2b2b', '#123838'], msg: "IT SHATTERED!", music: 'chaos_p1' },
+    { id: 8, targetScore: 1500, type: 'bouncer', spawnRate: 45, spawnCount: 1, speedLevel: 8, bg: ['#0d2b2b', '#123838'], msg: "BOUNCING CHAOS", music: 'chaos_p2' },
+    { id: 9, targetScore: 1500, type: 'bouncer', spawnRate: 30, spawnCount: 2, speedLevel: 9, bg: ['#0d2b2b', '#123838'], msg: "DONT TOUCH", music: 'chaos_full' },
+    { id: 10, targetScore: 999999, type: 'endless', spawnRate: 10, maxEnemies: 100, speedLevel: 10, bg: ['#000', '#111'], msg: "LEVEL 10 - ENDLESS", music: 'hero_extended' }
+];
+
+const SPRITES = {
+    hero: [[0,0,1,1,1,1,0,0], [0,1,1,1,1,1,1,0], [0,1,0,1,1,0,1,0], [0,1,1,1,1,1,1,0], [0,0,1,1,1,1,0,0], [0,1,0,0,0,0,1,0], [1,0,1,0,0,1,0,1], [1,1,0,0,0,0,1,1]],
+    slime: [[0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0], [0,0,1,1,1,1,0,0], [0,1,1,1,1,1,1,0], [1,1,0,1,1,0,1,1], [1,1,1,1,1,1,1,1], [1,0,1,1,1,1,0,1], [0,1,0,0,0,0,1,0]],
+    snakeHead: [[0,0,1,1,1,1,0,0], [0,1,1,1,1,1,1,0], [1,1,0,1,1,0,1,1], [1,1,1,1,1,1,1,1], [1,1,1,1,1,1,1,1], [0,1,1,1,1,1,1,0], [0,0,1,0,0,1,0,0], [0,0,1,0,0,1,0,0]],
+    coin: [[0,0,1,1,1,0,0,0], [0,1,1,2,1,1,0,0], [1,1,2,2,2,1,1,0], [1,1,2,2,2,1,1,0], [1,1,2,2,2,1,1,0], [0,1,1,2,1,1,0,0], [0,0,1,1,1,0,0,0], [0,0,0,0,0,0,0,0]],
+    healthBag: [[2,2,2,2,2,2,2,2], [2,2,2,1,1,2,2,2], [2,2,2,1,1,2,2,2], [2,1,1,1,1,1,1,2], [2,1,1,1,1,1,1,2], [2,2,2,1,1,2,2,2], [2,2,2,1,1,2,2,2], [2,2,2,2,2,2,2,2]],
+    blackBox: [[1,1,1,1,1,1,1,1], [1,0,0,0,0,0,0,1], [1,0,0,0,0,0,0,1], [1,0,0,0,0,0,0,1], [1,0,0,0,0,0,0,1], [1,0,0,0,0,0,0,1], [1,0,0,0,0,0,0,1], [1,1,1,1,1,1,1,1]]
+};
+
+const PALETTE = {
+    hero: '#4b692f', slime: '#b45252', snake: '#8b3232', bouncer: '#5d2c2c',
+    coinMain: '#d3a068', coinShine: '#ffe0a0', dashTrail: 'rgba(75, 105, 47, 0.3)',
+    health: '#ffffff', healthCross: '#ff0000', blackBox: '#000000'
+};
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score-display');
+const livesEl = document.getElementById('lives-display');
+const levelEl = document.getElementById('level-display');
+const timerEl = document.getElementById('timer-display');
+const startScreen = document.getElementById('start-screen');
+const level10Screen = document.getElementById('level10-screen');
+const startBtn = document.getElementById('start-btn');
+const finalScoreEl = document.getElementById('final-score');
+const levelMsgEl = document.getElementById('level-msg');
+const endGameInfo = document.getElementById('end-game-info');
+const gameTitle = document.getElementById('game-title');
+const msgOverlay = document.getElementById('msg-overlay');
+const powerLed = document.getElementById('power-led');
+const dashBar = document.getElementById('dash-bar');
+
+let audioCtx;
+let gameLoopId;
+let score = 0;
+let frameCount = 0;
+let isGameOver = true;
+let isPaused = false;
+let currentLevelIdx = 0;
+let levelStartTime = 0;
+let level10Pending = false;
+let blackBoxSpawned = false;
+
+const player = { x: 0, y: 0, speed: 3, baseSpeed: 3, dashSpeed: 9, size: 16, dashTimer: 0, dashCooldown: 0, lives: 2, invulnerable: false, invulnerableTimer: 0 };
+const enemies = [];
+const coins = [];
+const particles = [];
+let healthBag = null;
+let blackBox = null;
+const input = { up: false, down: false, left: false, right: false, dash: false };
+
+window.addEventListener('click', startTitleMusic);
+window.addEventListener('keydown', startTitleMusic);
+window.addEventListener('touchstart', startTitleMusic);
+
+function initAudio() { 
+    if (!audioCtx) audioCtx = new AudioContext(); 
+    initMusic(); 
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playSound(type) {
+    if(!audioCtx || !sfxOn) return;
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    if (type === 'coin') {
+        osc.type = 'square'; osc.frequency.setValueAtTime(600, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime+0.1); gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.1); osc.start(); osc.stop(audioCtx.currentTime+0.1);
+    } else if (type === 'dash') {
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime+0.15); gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime+0.15); osc.start(); osc.stop(audioCtx.currentTime+0.15);
+    } else if (type === 'hit') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime+0.3); gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime); gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.3); osc.start(); osc.stop(audioCtx.currentTime+0.3);
+    } else if (type === 'level') {
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(400, audioCtx.currentTime); osc.frequency.setValueAtTime(600, audioCtx.currentTime+0.1); osc.frequency.setValueAtTime(800, audioCtx.currentTime+0.2); gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime+0.5); osc.start(); osc.stop(audioCtx.currentTime+0.5);
+    } else if (type === 'heal') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(400, audioCtx.currentTime); osc.frequency.linearRampToValueAtTime(800, audioCtx.currentTime+0.3); gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime+0.3); osc.start(); osc.stop(audioCtx.currentTime+0.3);
+    } else if (type === 'secret') {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(1000, audioCtx.currentTime); osc.frequency.linearRampToValueAtTime(2000, audioCtx.currentTime+1); gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime); osc.start(); osc.stop(audioCtx.currentTime+1);
+    }
+}
+
+function createParticles(x, y, color) { for(let i=0; i<8; i++) particles.push({x: x+8, y: y+8, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, life: 20, color: color}); }
+function updateLivesUI() { let hearts = ""; for(let i=0; i<player.lives; i++) hearts += "♥"; livesEl.textContent = hearts; }
+
+function init() {
+    initAudio();
+    powerLed.classList.add('on');
+    score = 0;
+    currentLevelIdx = 0;
+    player.lives = 2;
+    player.invulnerable = false;
+    player.invulnerableTimer = 0;
+    player.x = CANVAS_SIZE / 2;
+    player.y = CANVAS_SIZE / 2;
+    
+    // Safety: Reset inputs to ensure player doesn't move if keys were held during death
+    input.up = false; input.down = false; input.left = false; input.right = false; input.dash = false;
+    
+    updateLivesUI();
+    isGameOver = false; isPaused = false; level10Pending = false;
+    startScreen.style.display = 'none';
+    level10Screen.style.display = 'none';
+    endGameInfo.style.display = 'none';
+    gameTitle.style.display = 'none';
+    finalScoreEl.classList.remove('score-pop');
+    startLevel(0);
+    loop();
+}
+
+function startLevel(idx) {
+    if (idx === 9 && !level10Pending) {
+        isPaused = true; stopMusic(); level10Screen.style.display = 'flex'; return;
+    }
+    currentLevelIdx = idx;
+    const config = LEVELS[currentLevelIdx];
+    if (config.music) playMusic(config.music);
+    
+    enemies.length = 0; coins.length = 0; particles.length = 0; healthBag = null; blackBox = null; blackBoxSpawned = false;
+    
+    if (player.lives < 2) { player.lives = 2; updateLivesUI(); playSound('heal'); }
+
+    if(config.type === 'snake') {
+        let startX = 20; let startY = 20;
+        for(let i=0; i<config.snakeLen; i++) {
+            enemies.push({ x: startX, y: startY, size: 16, type: 'snake', speed: 0, index: i });
+            enemies[enemies.length-1].speed = 0.5 + (config.speedLevel * 0.35) + 0.5;
+        }
+    } else {
+        spawnEnemy(config.type);
+    }
+
+    if (Math.random() < 0.3) spawnHealthBag();
+    spawnCoin(); spawnCoin();
+
+    levelStartTime = Date.now();
+    levelEl.textContent = `LVL: ${config.id}`;
+    msgOverlay.textContent = `${config.msg}`;
+    msgOverlay.style.display = 'block';
+    setTimeout(() => { msgOverlay.style.display = 'none'; }, 1000);
+    playSound('level');
+}
+
+function loop() {
+    if(isGameOver || isPaused) return;
+    update(); draw(); frameCount++;
+    gameLoopId = requestAnimationFrame(loop);
+}
+
+function update() {
+    const config = LEVELS[currentLevelIdx];
+    const elapsedSec = (Date.now() - levelStartTime) / 1000;
+    let levelComplete = false;
+    if (score >= config.targetScore && config.id !== 10) levelComplete = true;
+    if (config.timeLimit) {
+        const remaining = Math.ceil(config.timeLimit - elapsedSec);
+        timerEl.textContent = `SURVIVE: ${remaining}s`;
+        if (remaining <= 0) levelComplete = true;
+    } else { timerEl.textContent = ""; }
+
+    if (levelComplete) {
+        if (currentLevelIdx < LEVELS.length - 1) { startLevel(currentLevelIdx + 1); return; }
+    }
+
+    if (config.id === 10 && score >= 3000 && !blackBoxSpawned) {
+        blackBoxSpawned = true;
+        blackBox = { x: Math.random() * (CANVAS_SIZE - 30), y: Math.random() * (CANVAS_SIZE - 30), size: 16 };
+        playSound('secret');
+    }
+    if (blackBox && checkCollision(player, blackBox)) { gameOver("YOU ESCAPED<br>THE SYSTEM!"); return; }
+
+    if (config.type === 'chaser' || config.type === 'bouncer' || config.type === 'endless') {
+        if (frameCount % config.spawnRate === 0) {
+            let spawnLimit = config.maxEnemies || 999;
+            if (enemies.length < spawnLimit) {
+                for(let i=0; i < (config.spawnCount || 1); i++) spawnEnemy(config.type === 'endless' ? 'bouncer' : config.type);
+            }
+        }
+    }
+
+    if (player.invulnerable) { player.invulnerableTimer--; if (player.invulnerableTimer <= 0) player.invulnerable = false; }
+    if (input.dash && player.dashCooldown <= 0) { player.dashTimer = DASH_DURATION; player.dashCooldown = DASH_COOLDOWN; playSound('dash'); }
+    if (player.dashTimer > 0) {
+        player.speed = player.dashSpeed; player.dashTimer--;
+        if(frameCount % 3 === 0) particles.push({x: player.x, y: player.y, vx: 0, vy: 0, life: 10, color: PALETTE.dashTrail, isGhost: true});
+    } else { player.speed = player.baseSpeed; }
+    if (player.dashCooldown > 0) player.dashCooldown--;
+    const dashPct = Math.max(0, (DASH_COOLDOWN - player.dashCooldown) / DASH_COOLDOWN);
+    dashBar.style.transform = `scaleX(${dashPct})`;
+    dashBar.style.backgroundColor = player.dashCooldown > 0 ? '#b45252' : '#00ff00';
+
+    if (input.up && player.y > 0) player.y -= player.speed;
+    if (input.down && player.y < CANVAS_SIZE - player.size) player.y += player.speed;
+    if (input.left && player.x > 0) player.x -= player.speed;
+    if (input.right && player.x < CANVAS_SIZE - player.size) player.x += player.speed;
+
+    enemies.forEach(enemy => {
+        if (enemy.type === 'chaser') {
+            if (enemy.x < player.x) enemy.x += enemy.speed; if (enemy.x > player.x) enemy.x -= enemy.speed;
+            if (enemy.y < player.y) enemy.y += enemy.speed; if (enemy.y > player.y) enemy.y -= enemy.speed;
+        } else if (enemy.type === 'snake') {
+            let targetX, targetY;
+            if (enemy.index === 0) { targetX = player.x; targetY = player.y; } 
+            else { let prev = enemies[enemy.index - 1]; targetX = prev.x; targetY = prev.y; }
+            let dx = targetX - enemy.x; let dy = targetY - enemy.y; let dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > (enemy.index === 0 ? 0 : 12)) { enemy.x += (dx / dist) * enemy.speed; enemy.y += (dy / dist) * enemy.speed; }
+        } else if (enemy.type === 'bouncer') {
+            enemy.x += enemy.vx; enemy.y += enemy.vy;
+            if (enemy.x <= 0 || enemy.x >= CANVAS_SIZE - enemy.size) enemy.vx *= -1; if (enemy.y <= 0 || enemy.y >= CANVAS_SIZE - enemy.size) enemy.vy *= -1;
+        }
+        if (checkCollision(player, enemy)) { 
+            if (!player.invulnerable) {
+                player.lives--; updateLivesUI(); playSound('hit');
+                if (player.lives <= 0) gameOver("CAUGHT!");
+                else { player.invulnerable = true; player.invulnerableTimer = INVULNERABLE_DURATION; }
+            }
+        }
+    });
+
+    for (let i = coins.length - 1; i >= 0; i--) {
+        if (checkCollision(player, coins[i])) { playSound('coin'); createParticles(coins[i].x, coins[i].y, PALETTE.coinShine); score += 10; scoreEl.textContent = `SCORE: ${score}`; coins.splice(i, 1); spawnCoin(); }
+    }
+    if (healthBag && checkCollision(player, healthBag)) { player.lives = 2; updateLivesUI(); playSound('heal'); healthBag = null; }
+    for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life--; if(p.life <= 0) particles.splice(i, 1); }
+}
+
+function draw() {
+    const config = LEVELS[currentLevelIdx];
+    const tileSize = 32;
+    for(let y=0; y<CANVAS_SIZE; y+=tileSize) { for(let x=0; x<CANVAS_SIZE; x+=tileSize) { const isAlt = (x/tileSize + y/tileSize) % 2 === 0; ctx.fillStyle = isAlt ? config.bg[0] : config.bg[1]; ctx.fillRect(x, y, tileSize, tileSize); } }
+    particles.forEach(p => { ctx.fillStyle = p.color; if(p.isGhost) drawSprite(SPRITES.hero, p.x, p.y, p.color); else ctx.fillRect(p.x, p.y, 3, 3); });
+    coins.forEach(c => drawSprite(SPRITES.coin, c.x, c.y, PALETTE.coinMain, PALETTE.coinShine));
+    if(healthBag) drawSprite(SPRITES.healthBag, healthBag.x, healthBag.y, PALETTE.health, PALETTE.healthCross);
+    if(blackBox) drawSprite(SPRITES.blackBox, blackBox.x, blackBox.y, PALETTE.blackBox, '#333');
+    enemies.forEach(e => {
+        if (e.type === 'snake' && e.index === 0) drawSprite(SPRITES.snakeHead, e.x, e.y, PALETTE.snake);
+        else if (e.type === 'snake') { ctx.fillStyle = PALETTE.snake; ctx.fillRect(e.x+2, e.y+2, 12, 12); }
+        else if (e.type === 'bouncer') drawSprite(SPRITES.slime, e.x, e.y, PALETTE.bouncer);
+        else drawSprite(SPRITES.slime, e.x, e.y, PALETTE.slime);
+    });
+    if (!player.invulnerable || Math.floor(Date.now() / 100) % 2 === 0) drawSprite(SPRITES.hero, player.x, player.y, PALETTE.hero);
+}
+
+function drawSprite(spriteMap, x, y, color1, color2 = null) {
+    const pixelSize = 2; 
+    spriteMap.forEach((row, rowIndex) => { row.forEach((pixel, colIndex) => { if (pixel === 1) { ctx.fillStyle = color1; ctx.fillRect(x + (colIndex * pixelSize), y + (rowIndex * pixelSize), pixelSize, pixelSize); } else if (pixel === 2 && color2) { ctx.fillStyle = color2; ctx.fillRect(x + (colIndex * pixelSize), y + (rowIndex * pixelSize), pixelSize, pixelSize); } }); });
+}
+
+function spawnEnemy(type = 'chaser') {
+    let ex, ey;
+    if (Math.random() > 0.5) { ex = Math.random() > 0.5 ? 0 : CANVAS_SIZE - 16; ey = Math.random() * CANVAS_SIZE; } else { ex = Math.random() * CANVAS_SIZE; ey = Math.random() > 0.5 ? 0 : CANVAS_SIZE - 16; }
+    let enemy = { x: ex, y: ey, size: 12, type: type };
+    const config = LEVELS[currentLevelIdx];
+    let baseSpeed = 0.5 + (config.speedLevel * 0.35);
+    let finalSpeed = baseSpeed + (Math.random() * 0.2);
+    if (type === 'chaser') enemy.speed = finalSpeed;
+    else if (type === 'bouncer') { enemy.vx = (Math.random() > 0.5 ? 1 : -1) * finalSpeed; enemy.vy = (Math.random() > 0.5 ? 1 : -1) * finalSpeed; }
+    enemies.push(enemy);
+}
+
+function spawnCoin() { coins.push({ x: 20 + Math.random() * (CANVAS_SIZE - 40), y: 20 + Math.random() * (CANVAS_SIZE - 40), size: 16 }); }
+function spawnHealthBag() { healthBag = { x: 20 + Math.random() * (CANVAS_SIZE - 40), y: 20 + Math.random() * (CANVAS_SIZE - 40), size: 16 }; }
+
+function checkCollision(rect1, rect2) { const margin = 4; return ( rect1.x + margin < rect2.x + rect2.size - margin && rect1.x + rect1.size - margin > rect2.x + margin && rect1.y + margin < rect2.y + rect2.size - margin && rect1.y + rect1.size - margin > rect2.y + margin ); }
+
+function gameOver(reason) {
+    isGameOver = true; stopMusic(); powerLed.classList.remove('on');
+    gameTitle.style.display = 'block';
+    
+    // Title Logic
+    let isWin = reason.includes('ESCAPED') || reason.includes('Thanks');
+    gameTitle.innerHTML = isWin ? "YOU<br>WIN!" : "GAME<br>OVER";
+    
+    // Message Logic with Teases
+    const TEASES = ["TOO SLOW!", "SKILL ISSUE?", "GOTCHA!", "YOU DIED", "TRY HARDER", "OOPS!", "SNAKED!"];
+    let displayMsg = reason;
+    if (reason === "CAUGHT!") {
+        displayMsg = TEASES[Math.floor(Math.random() * TEASES.length)];
+    }
+    levelMsgEl.innerHTML = displayMsg;
+
+    endGameInfo.style.display = 'block';
+    finalScoreEl.textContent = `SCORE: ${score}`;
+    finalScoreEl.classList.add('score-pop'); 
+    
+    // Show Score Input Logic
+    startBtn.textContent = isWin ? "PLAY AGAIN" : "RETRY";
+    startScreen.style.display = 'flex';
+    
+    // Only show input if score > 0
+    if (score > 0) {
+        nameInputContainer.style.display = 'flex';
+        nameInput.value = "";
+    } else {
+        nameInputContainer.style.display = 'none';
+    }
+    
+    // Play appropriate jingle
+    if(isWin) {
+        playMusic('victory');
+    } else {
+        playMusic('gameover');
+    }
+}
+
+document.getElementById('l10-yes-btn').addEventListener('click', () => { level10Pending = true; level10Screen.style.display = 'none'; isPaused = false; startLevel(9); loop(); });
+document.getElementById('l10-no-btn').addEventListener('click', () => { 
+    level10Screen.style.display = 'none'; 
+    gameOver("Congrats on passing Level 9.<br>Thanks for playing !!");
+    gameTitle.innerHTML = "YOU<br>WIN!"; 
+});
+
+window.addEventListener('keydown', (e) => {
+    // DISABLE INPUT IF GAME IS OVER OR PAUSED
+    if (isGameOver || isPaused) return;
+
+    if (e.code === 'ArrowUp') input.up = true; 
+    if (e.code === 'ArrowDown') input.down = true; 
+    if (e.code === 'ArrowLeft') input.left = true; 
+    if (e.code === 'ArrowRight') input.right = true; 
+    if (e.code === 'KeyZ') { input.dash = true; clickBtn('a'); }
+    
+    highlightButton(e.code, true);
+});
+
+window.addEventListener('keyup', (e) => {
+    // DISABLE INPUT IF GAME IS OVER OR PAUSED
+    if (isGameOver || isPaused) return;
+
+    if (e.code === 'ArrowUp') input.up = false; 
+    if (e.code === 'ArrowDown') input.down = false; 
+    if (e.code === 'ArrowLeft') input.left = false; 
+    if (e.code === 'ArrowRight') input.right = false; 
+    if (e.code === 'KeyZ') input.dash = false;
+    
+    highlightButton(e.code, false);
+});
+
+function highlightButton(key, isActive) { 
+    let elId = ''; 
+    if (key === 'ArrowUp') elId = 'btn-up'; 
+    if (key === 'ArrowDown') elId = 'btn-down'; 
+    if (key === 'ArrowLeft') elId = 'btn-left'; 
+    if (key === 'ArrowRight') elId = 'btn-right'; 
+    if (key === 'KeyZ') elId = 'btn-a'; 
+    
+    if(elId) { 
+        const el = document.getElementById(elId); 
+        if(el) { isActive ? el.classList.add('active') : el.classList.remove('active'); } 
+    } 
+}
+
+const dBtns = document.querySelectorAll('.d-btn');
+dBtns.forEach(btn => {
+    btn.addEventListener('touchstart', (e) => { 
+        // DISABLE TOUCH IF GAME IS OVER
+        if (isGameOver || isPaused) return;
+        
+        e.preventDefault(); 
+        const key = btn.getAttribute('data-key'); 
+        if(key==='ArrowUp')input.up=true; 
+        if(key==='ArrowDown')input.down=true; 
+        if(key==='ArrowLeft')input.left=true; 
+        if(key==='ArrowRight')input.right=true; 
+        btn.classList.add('active'); 
+    });
+    
+    btn.addEventListener('touchend', (e) => { 
+        e.preventDefault(); 
+        const key = btn.getAttribute('data-key'); 
+        if(key==='ArrowUp')input.up=false; 
+        if(key==='ArrowDown')input.down=false; 
+        if(key==='ArrowLeft')input.left=false; 
+        if(key==='ArrowRight')input.right=false; 
+        btn.classList.remove('active'); 
+    });
+});
+
+function clickBtn(type) { 
+    const btn = document.getElementById(`btn-${type}`); 
+    btn.classList.add('active'); 
+    setTimeout(() => btn.classList.remove('active'), 150); 
+    if(type === 'a') { 
+        input.dash = true; 
+        setTimeout(() => input.dash = false, 200); 
+    } 
+}
+
+document.getElementById('btn-a').addEventListener('touchstart', (e) => { 
+    if (isGameOver || isPaused) return; // DISABLE BUTTON A
+    e.preventDefault(); 
+    clickBtn('a'); 
+});
+
+document.getElementById('btn-b').addEventListener('touchstart', (e) => { 
+    if (isGameOver || isPaused) return; // DISABLE BUTTON B
+    e.preventDefault(); 
+    clickBtn('b'); 
+});
+
+startBtn.addEventListener('click', init);
+</script>
+</body>
+</html>
