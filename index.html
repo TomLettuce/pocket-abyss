@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pixel Cavern - Campaign Edition</title>
+    <title>Pocket Abyss - Campaign Edition</title>
+    
+    <meta property="og:title" content="Pocket Abyss">
+    <meta property="og:description" content="Can you survive the abyss? Play my retro pixel survival game now!">
     
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
@@ -34,7 +37,7 @@
         #gb-shell {
             background-color: var(--gb-body);
             width: 420px;
-            height: 800px; /* Increased height to fit big buttons */
+            height: 800px;
             border-radius: 15px 15px 50px 15px;
             box-shadow: -5px 5px 25px rgba(0,0,0,0.6), inset 2px 2px 8px rgba(255,255,255,0.4);
             display: flex;
@@ -46,7 +49,7 @@
         }
         
         @media (max-height: 850px) {
-            #gb-shell { transform: scale(0.70); } /* Smaller scale for smaller phones */
+            #gb-shell { transform: scale(0.70); }
         }
 
         #gb-screen-lens {
@@ -290,12 +293,10 @@
         button:hover { animation: none; background: #d3a068; transform: translateY(2px); box-shadow: 0 2px 0 #521b1b; }
         button:active { transform: translateY(4px); box-shadow: none; }
 
-        /* ========================================= */
         /* ENLARGED CONTROLS FOR MOBILE PLAYABILITY */
-        /* ========================================= */
         #controls-area {
             width: 100%;
-            height: 320px; /* Taller to fit big buttons */
+            height: 320px;
             position: relative;
             margin-top: 20px;
         }
@@ -342,7 +343,7 @@
             border-radius: 50%; background: #b45252;
             box-shadow: 2px 4px 0 rgba(0,0,0,0.4), inset -2px -4px 5px rgba(0,0,0,0.2);
             position: absolute; display: flex; align-items: center; justify-content: center;
-            font-size: 24px; /* Bigger B/A text */
+            font-size: 24px; 
             color: #521b1b; font-weight: bold;
             transition: transform 0.1s, background-color 0.1s, box-shadow 0.1s;
             border: 1px solid rgba(0,0,0,0.1);
@@ -417,7 +418,7 @@
                 </div>
 
                 <div id="start-screen">
-                    <h1 id="game-title" class="anim-bounce">PIXEL<br>CAVERN</h1>
+                    <h1 id="game-title" class="anim-bounce">POCKET<br>ABYSS</h1>
                     
                     <div id="end-game-info" class="anim-slide" style="display:none; text-align: center;">
                         <p id="level-msg">STAGE CLEAR!</p>
@@ -468,12 +469,12 @@
 // --- FIREBASE CONFIG ---
 // ⚠️ REPLACE THIS WITH YOUR FIREBASE KEYS ⚠️
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY_HERE",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyASHsvjA_tV57Nc3j3YkQmwvMzCFh3iekA",
+      authDomain: "pixel-cavern.firebaseapp.com",
+      projectId: "pixel-cavern",
+      storageBucket: "pixel-cavern.firebasestorage.app",
+      messagingSenderId: "878527454928",
+      appId: "1:878527454928:web:042a8d2776ca158a0b48d5"
 };
 
 // Initialize Firebase
